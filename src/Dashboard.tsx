@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -15,6 +15,8 @@ import {
   HStack,
   IconButton,
   Input,
+  InputGroup,
+  InputRightElement,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -27,6 +29,7 @@ import {
   Progress,
   Select,
   SimpleGrid,
+  Spinner,
   Text,
   useDisclosure,
   useToast,
@@ -45,6 +48,7 @@ import {
   AlertTitle,
   AlertDescription,
   Spacer,
+  Avatar,
 } from '@chakra-ui/react';
 import {
   FiPlus,
@@ -55,6 +59,7 @@ import {
   FiAlertTriangle,
   FiDollarSign,
   FiCalendar,
+  FiSend,
 } from 'react-icons/fi';
 import { useFinance, Expense, SavingsGoal } from './FinanceContext';
 
@@ -865,6 +870,13 @@ const GoalsList: React.FC = () => {
 // AI ADVISOR DRAWER COMPONENT
 // ============================================================================
 
+interface ChatMessage {
+  id: string;
+  sender: 'ai' | 'user';
+  text: string;
+  timestamp: string;
+}
+
 const AIAdvisorDrawer: React.FC = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { totalSpent, monthlyIncome, remainingBudget, goalProgress, expenses, savingsGoals } =
@@ -872,6 +884,27 @@ const AIAdvisorDrawer: React.FC = () => {
 
   const budgetStatus = remainingBudget < 0 ? 'danger' : remainingBudget < monthlyIncome * 0.2 ? 'warning' : 'safe';
   const completedGoals = savingsGoals.filter((g) => (g.currentSavings / g.targetAmount) * 100 >= 100).length;
+
+  const [inputQuery, setInputQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome-1',
+      sender: 'ai',
+      text: "👋 Hi! I'm your AI Financial Advisor. Ask me anything about budgeting, saving, investing in RWF, or analyzing your current expenses!",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    },
+  ]);
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading]);
 
   const getAIAdvice = (): { title: string; message: string; emoji: string } => {
     if (budgetStatus === 'danger') {
@@ -915,13 +948,155 @@ const AIAdvisorDrawer: React.FC = () => {
     }
 
     return {
-      title: '💰 You\'re On Track',
+      title: "💰 You're On Track",
       emoji: '✅',
       message: `Great job! You have ${formatRWF(remainingBudget)} remaining in your budget. Keep monitoring your expenses!`,
     };
   };
 
   const advice = getAIAdvice();
+
+  const generateAIResponse = (userQuery: string): string => {
+    const query = userQuery.toLowerCase().trim();
+
+    let topCategoryName = 'None';
+    let topCategoryAmount = 0;
+    if (expenses.length > 0) {
+      const categoryTotals: Record<string, number> = {};
+      expenses.forEach((exp) => {
+        categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
+      });
+      const top = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
+      if (top) {
+        topCategoryName = top[0];
+        topCategoryAmount = top[1];
+      }
+    }
+
+    if (
+      query.includes('my budget') ||
+      query.includes('my spending') ||
+      query.includes('analyze my') ||
+      query.includes('current balance') ||
+      query.includes('how am i doing') ||
+      query.includes('summary') ||
+      query.includes('my finances')
+    ) {
+      if (monthlyIncome === 0) {
+        return `💡 Your monthly income is currently set to 0 RWF. Go to Settings ⚙️ to set your monthly income ceiling!\n\nCurrently, you have recorded ${expenses.length} expense(s) totaling ${formatRWF(totalSpent)}.`;
+      }
+      let statusText =
+        remainingBudget < 0
+          ? `⚠️ You are currently over budget by ${formatRWF(Math.abs(remainingBudget))}.`
+          : `✅ You have ${formatRWF(remainingBudget)} remaining out of your ${formatRWF(monthlyIncome)} monthly income.`;
+      let insightText =
+        topCategoryAmount > 0
+          ? `\n\nYour highest expense category is **${topCategoryName}** (${formatRWF(topCategoryAmount)}).`
+          : '';
+      return `📊 **Your Financial Breakdown:**\n\n• Monthly Income: ${formatRWF(monthlyIncome)}\n• Total Spent: ${formatRWF(totalSpent)}\n• Remaining Budget: ${formatRWF(remainingBudget)}\n\n${statusText}${insightText}`;
+    }
+
+    if (query.includes('50/30/20') || query.includes('rule') || query.includes('how to budget') || query.includes('budgeting method')) {
+      const needs = monthlyIncome * 0.5;
+      const wants = monthlyIncome * 0.3;
+      const savings = monthlyIncome * 0.2;
+      return `⚖️ **The 50/30/20 Budget Rule:**\n\n• **50% Needs**: Housing, utilities, food, transport.\n• **30% Wants**: Entertainment, dining out, hobbies.\n• **20% Savings & Debt**: Building savings, emergency fund, investments.\n\n` +
+        (monthlyIncome > 0
+          ? `Based on your monthly income of **${formatRWF(monthlyIncome)}**, your target breakdown is:\n- Needs: ${formatRWF(needs)}\n- Wants: ${formatRWF(wants)}\n- Savings: ${formatRWF(savings)}`
+          : `Set your monthly income in Settings to calculate your 50/30/20 target breakdown!`);
+    }
+
+    if (query.includes('emergency') || query.includes('safety net') || query.includes('rainy day')) {
+      const target3Months = monthlyIncome * 3;
+      const target6Months = monthlyIncome * 6;
+      return `🛡️ **Emergency Fund Strategy:**\n\nAn emergency fund protects you against unforeseen expenses or job loss. Financial experts recommend keeping 3 to 6 months of living expenses in an accessible savings account.\n\n` +
+        (monthlyIncome > 0
+          ? `For your monthly income of **${formatRWF(monthlyIncome)}**:\n- 3-Month Fund Target: **${formatRWF(target3Months)}**\n- 6-Month Fund Target: **${formatRWF(target6Months)}**\n\nTip: Start small by automatically setting aside 10% of income each month into a separate account!`
+          : `Tip: Aim to save 3-6 months of expenses before starting aggressive long-term investments.`);
+    }
+
+    if (query.includes('invest') || query.includes('rwanda') || query.includes('rwf') || query.includes('stocks') || query.includes('rnit') || query.includes('treasury')) {
+      return `📈 **Top Investment Options in Rwanda (RWF):**\n\n` +
+        `1. **RNIT Iterambere Fund**: Open-ended unit trust managed by Rwanda National Investment Trust. High liquidity, low risk, and yields competitive returns.\n` +
+        `2. **Government Treasury Bonds & Bills**: Issued by National Bank of Rwanda (BNR). Very safe with fixed interest payouts.\n` +
+        `3. **Rwanda Stock Exchange (RSE)**: Buy shares in top listed companies (e.g. BK Group, Bralirwa, I&M Bank) for dividends and capital growth.\n` +
+        `4. **Fixed Term Deposit Accounts**: Offered by local commercial banks & MFIs with guaranteed interest rates.\n` +
+        `5. **Real Estate & Land**: Solid long-term value preservation asset.`;
+    }
+
+    if (query.includes('reduce') || query.includes('cut') || query.includes('save money') || query.includes('less money') || query.includes('stop spending')) {
+      let topInsight = '';
+      if (topCategoryAmount > 0) {
+        topInsight = `\n\n💡 Your biggest spend right now is on **${topCategoryName}** (${formatRWF(topCategoryAmount)}). Focusing on reducing this category by 15-20% will free up significant cash flow!`;
+      }
+      return `💡 **Tips to Reduce Expenses:**\n\n` +
+        `1. **24-Hour Rule**: Wait 24 hours before making impulse purchases.\n` +
+        `2. **Audit Subscriptions**: Cancel recurring services you don't actively use.\n` +
+        `3. **Meal Planning**: Cook at home to reduce dining & food delivery expenses.\n` +
+        `4. **Track Daily Micro-Expenses**: Small daily expenses add up quickly!${topInsight}`;
+    }
+
+    if (query.includes('goal') || query.includes('save faster') || query.includes('saving')) {
+      const completedCount = savingsGoals.filter((g) => (g.currentSavings / g.targetAmount) * 100 >= 100).length;
+      return `🎯 **Savings Goal Strategy:**\n\n` +
+        `• Currently, you have completed **${completedCount} of ${savingsGoals.length}** goals (${Math.round(goalProgress)}% overall progress).\n\n` +
+        `**How to Save Faster:**\n` +
+        `1. **Pay Yourself First**: Automate goal contributions right on payday.\n` +
+        `2. **Name Your Goals**: Giving specific names (e.g. "Laptop Fund", "Emergency Fund") increases motivation.\n` +
+        `3. **Use Milestone Badges**: Celebrate small milestones (25%, 50%, 75%) along the way!`;
+    }
+
+    if (query.includes('debt') || query.includes('loan') || query.includes('borrow') || query.includes('credit')) {
+      return `💳 **Debt Payoff Strategies:**\n\n` +
+        `1. **Debt Avalanche Method**: Pay off loans with the highest interest rates first. Saves the most money on interest.\n` +
+        `2. **Debt Snowball Method**: Pay off the smallest balance loans first. Provides quick psychological wins.\n` +
+        `3. **Avoid High-Interest Consumer Debt**: Never use short-term high-interest loans for non-essential purchases.`;
+    }
+
+    return `🤖 **AI Financial Advice:**\n\nRegarding "${userQuery}":\n\n` +
+      `Here is key guidance:\n` +
+      `• Always maintain a balanced budget where Income > Expenses.\n` +
+      `• Aim to save at least 20% of your earnings every month.\n` +
+      `• Keep 3-6 months of expenses in an Emergency Fund.\n` +
+      `• Consider investing in RNIT Iterambere Fund or Treasury Bonds for compound growth in RWF.\n\n` +
+      `*Your Current Status*: Remaining Budget: **${formatRWF(remainingBudget)}** | Spent: **${formatRWF(totalSpent)}**`;
+  };
+
+  const handleSendMessage = (textToSend?: string) => {
+    const text = textToSend || inputQuery;
+    if (!text.trim() || isLoading) return;
+
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      text: text.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    if (!textToSend) setInputQuery('');
+    setIsLoading(true);
+
+    setTimeout(() => {
+      const aiResponseText = generateAIResponse(text);
+      const aiMsg: ChatMessage = {
+        id: `ai-${Date.now()}`,
+        sender: 'ai',
+        text: aiResponseText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+      setIsLoading(false);
+    }, 500);
+  };
+
+  const suggestedQuestions = [
+    '💡 How to save 20% of my income?',
+    '📊 Analyze my current budget',
+    '🛡️ How to build an emergency fund?',
+    '📈 Investing options in RWF',
+    '⚖️ Explain the 50/30/20 rule',
+  ];
 
   return (
     <>
@@ -935,106 +1110,265 @@ const AIAdvisorDrawer: React.FC = () => {
         AI Advisor
       </Button>
 
-      <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
+      <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="lg">
         <DrawerOverlay />
         <DrawerContent>
           <DrawerCloseButton />
           <DrawerHeader fontSize="xl" fontWeight="bold">
-            🤖 AI Financial Advisor
+            🤖 AI Financial Advisor & Chat
           </DrawerHeader>
 
-          <DrawerBody>
-            <VStack spacing={6} align="stretch">
-              {/* Main Advice */}
-              <Alert
-                status={budgetStatus === 'danger' ? 'error' : budgetStatus === 'warning' ? 'warning' : 'success'}
-                borderRadius="lg"
-                flexDirection="column"
-                alignItems="flex-start"
-                p={4}
-              >
-                <Flex align="center" mb={2}>
-                  <AlertIcon mr={2} />
-                  <AlertTitle fontSize="md" fontWeight="bold">
-                    {advice.title}
-                  </AlertTitle>
-                </Flex>
-                <AlertDescription fontSize="sm" ml={6}>
-                  {advice.message}
-                </AlertDescription>
-              </Alert>
+          <DrawerBody p={4}>
+            <Tabs variant="soft-rounded" colorScheme="blue" isFitted>
+              <TabList mb="4">
+                <Tab fontSize="sm" fontWeight="bold">
+                  💬 Ask AI Assistant
+                </Tab>
+                <Tab fontSize="sm" fontWeight="bold">
+                  📊 Insights & Overview
+                </Tab>
+              </TabList>
 
-              <Divider />
-
-              {/* Financial Summary */}
-              <Box>
-                <Heading size="sm" mb="4">
-                  📊 Financial Summary
-                </Heading>
-                <SimpleGrid columns={2} spacing={3}>
-                  <Box p={3} bg="gray.50" borderRadius="lg">
-                    <Text fontSize="xs" color="gray.600" mb="1">
-                      Total Spent
-                    </Text>
-                    <Text fontSize="lg" fontWeight="bold" color="orange.600">
-                      {formatRWF(totalSpent)}
-                    </Text>
-                  </Box>
-                  <Box p={3} bg="gray.50" borderRadius="lg">
-                    <Text fontSize="xs" color="gray.600" mb="1">
-                      Remaining
-                    </Text>
-                    <Text
-                      fontSize="lg"
-                      fontWeight="bold"
-                      color={remainingBudget < 0 ? 'red.600' : 'green.600'}
-                    >
-                      {formatRWF(remainingBudget)}
-                    </Text>
-                  </Box>
-                  <Box p={3} bg="gray.50" borderRadius="lg">
-                    <Text fontSize="xs" color="gray.600" mb="1">
-                      Goals Progress
-                    </Text>
-                    <Text fontSize="lg" fontWeight="bold" color="purple.600">
-                      {Math.round(goalProgress)}%
-                    </Text>
-                  </Box>
-                  <Box p={3} bg="gray.50" borderRadius="lg">
-                    <Text fontSize="xs" color="gray.600" mb="1">
-                      Goals Completed
-                    </Text>
-                    <Text fontSize="lg" fontWeight="bold" color="blue.600">
-                      {completedGoals}/{savingsGoals.length}
-                    </Text>
-                  </Box>
-                </SimpleGrid>
-              </Box>
-
-              <Divider />
-
-              {/* Top Spending Category */}
-              {expenses.length > 0 && (
-                <Box>
-                  <Heading size="sm" mb="3">
-                    📈 Spending Insights
-                  </Heading>
-                  {(() => {
-                    const categoryTotals: Record<string, number> = {};
-                    expenses.forEach((exp) => {
-                      categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + exp.amount;
-                    });
-                    const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
-                    return (
-                      <Text fontSize="sm" color="gray.700">
-                        Your top spending category is <strong>{topCategory[0]}</strong> with{' '}
-                        <strong>{formatRWF(topCategory[1])}</strong>.
+              <TabPanels>
+                {/* TAB 1: INTERACTIVE AI CHAT */}
+                <TabPanel p={0}>
+                  <VStack spacing={4} align="stretch" h="calc(100vh - 170px)">
+                    {/* Suggested Questions Pills */}
+                    <Box bg="blue.50" p={3} borderRadius="lg">
+                      <Text fontSize="xs" fontWeight="bold" color="blue.700" mb={2}>
+                        💡 Quick Questions:
                       </Text>
-                    );
-                  })()}
-                </Box>
-              )}
-            </VStack>
+                      <Flex wrap="wrap" gap={2}>
+                        {suggestedQuestions.map((q, idx) => (
+                          <Button
+                            key={idx}
+                            size="xs"
+                            colorScheme="blue"
+                            variant="subtle"
+                            bg="white"
+                            color="blue.700"
+                            border="1px solid"
+                            borderColor="blue.200"
+                            onClick={() => handleSendMessage(q)}
+                            _hover={{ bg: 'blue.100' }}
+                          >
+                            {q}
+                          </Button>
+                        ))}
+                      </Flex>
+                    </Box>
+
+                    {/* Messages Container */}
+                    <Box
+                      flex="1"
+                      overflowY="auto"
+                      p={3}
+                      bg="gray.50"
+                      borderRadius="lg"
+                      border="1px solid"
+                      borderColor="gray.200"
+                    >
+                      <VStack spacing={3} align="stretch">
+                        {messages.map((msg) => (
+                          <Flex
+                            key={msg.id}
+                            justify={msg.sender === 'user' ? 'flex-end' : 'flex-start'}
+                          >
+                            <HStack
+                              align="flex-start"
+                              spacing={2}
+                              maxW="85%"
+                              flexDirection={msg.sender === 'user' ? 'row-reverse' : 'row'}
+                            >
+                              <Avatar
+                                size="xs"
+                                name={msg.sender === 'user' ? 'User' : 'AI'}
+                                bg={msg.sender === 'user' ? 'teal.500' : 'blue.600'}
+                                icon={msg.sender === 'user' ? undefined : <FiTrendingUp />}
+                              />
+                              <Box
+                                bg={msg.sender === 'user' ? 'teal.500' : 'white'}
+                                color={msg.sender === 'user' ? 'white' : 'gray.800'}
+                                p={3}
+                                borderRadius="lg"
+                                boxShadow="sm"
+                                border={msg.sender === 'user' ? 'none' : '1px solid'}
+                                borderColor="gray.200"
+                              >
+                                <Text
+                                  fontSize="sm"
+                                  whiteSpace="pre-wrap"
+                                  lineHeight="relaxed"
+                                >
+                                  {msg.text}
+                                </Text>
+                                <Text
+                                  fontSize="xs"
+                                  color={msg.sender === 'user' ? 'teal.100' : 'gray.400'}
+                                  mt={1}
+                                  textAlign="right"
+                                >
+                                  {msg.timestamp}
+                                </Text>
+                              </Box>
+                            </HStack>
+                          </Flex>
+                        ))}
+
+                        {isLoading && (
+                          <Flex justify="flex-start">
+                            <HStack spacing={2} bg="white" p={3} borderRadius="lg" boxShadow="sm">
+                              <Spinner size="xs" color="blue.500" />
+                              <Text fontSize="xs" color="gray.500">
+                                AI is analyzing finances and generating response...
+                              </Text>
+                            </HStack>
+                          </Flex>
+                        )}
+                        <div ref={messagesEndRef} />
+                      </VStack>
+                    </Box>
+
+                    {/* Chat Input */}
+                    <Box pt={2}>
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }}
+                      >
+                        <InputGroup size="md">
+                          <Input
+                            placeholder="Ask any question about finance or budget..."
+                            value={inputQuery}
+                            onChange={(e) => setInputQuery(e.target.value)}
+                            focusBorderColor="blue.500"
+                            bg="white"
+                            borderRadius="lg"
+                            pr="4.5rem"
+                          />
+                          <InputRightElement width="4.5rem">
+                            <Button
+                              h="1.75rem"
+                              size="sm"
+                              colorScheme="blue"
+                              onClick={() => handleSendMessage()}
+                              isLoading={isLoading}
+                            >
+                              <FiSend />
+                            </Button>
+                          </InputRightElement>
+                        </InputGroup>
+                      </form>
+                    </Box>
+                  </VStack>
+                </TabPanel>
+
+                {/* TAB 2: FINANCIAL OVERVIEW & INSIGHTS */}
+                <TabPanel p={0}>
+                  <VStack spacing={6} align="stretch" pt={2}>
+                    {/* Main Advice Alert */}
+                    <Alert
+                      status={
+                        budgetStatus === 'danger'
+                          ? 'error'
+                          : budgetStatus === 'warning'
+                          ? 'warning'
+                          : 'success'
+                      }
+                      borderRadius="lg"
+                      flexDirection="column"
+                      alignItems="flex-start"
+                      p={4}
+                    >
+                      <Flex align="center" mb={2}>
+                        <AlertIcon mr={2} />
+                        <AlertTitle fontSize="md" fontWeight="bold">
+                          {advice.title}
+                        </AlertTitle>
+                      </Flex>
+                      <AlertDescription fontSize="sm" ml={6}>
+                        {advice.message}
+                      </AlertDescription>
+                    </Alert>
+
+                    <Divider />
+
+                    {/* Financial Summary */}
+                    <Box>
+                      <Heading size="sm" mb="4">
+                        📊 Financial Summary
+                      </Heading>
+                      <SimpleGrid columns={2} spacing={3}>
+                        <Box p={3} bg="gray.50" borderRadius="lg">
+                          <Text fontSize="xs" color="gray.600" mb="1">
+                            Total Spent
+                          </Text>
+                          <Text fontSize="lg" fontWeight="bold" color="orange.600">
+                            {formatRWF(totalSpent)}
+                          </Text>
+                        </Box>
+                        <Box p={3} bg="gray.50" borderRadius="lg">
+                          <Text fontSize="xs" color="gray.600" mb="1">
+                            Remaining
+                          </Text>
+                          <Text
+                            fontSize="lg"
+                            fontWeight="bold"
+                            color={remainingBudget < 0 ? 'red.600' : 'green.600'}
+                          >
+                            {formatRWF(remainingBudget)}
+                          </Text>
+                        </Box>
+                        <Box p={3} bg="gray.50" borderRadius="lg">
+                          <Text fontSize="xs" color="gray.600" mb="1">
+                            Goals Progress
+                          </Text>
+                          <Text fontSize="lg" fontWeight="bold" color="purple.600">
+                            {Math.round(goalProgress)}%
+                          </Text>
+                        </Box>
+                        <Box p={3} bg="gray.50" borderRadius="lg">
+                          <Text fontSize="xs" color="gray.600" mb="1">
+                            Goals Completed
+                          </Text>
+                          <Text fontSize="lg" fontWeight="bold" color="blue.600">
+                            {completedGoals}/{savingsGoals.length}
+                          </Text>
+                        </Box>
+                      </SimpleGrid>
+                    </Box>
+
+                    <Divider />
+
+                    {/* Top Spending Category */}
+                    {expenses.length > 0 && (
+                      <Box>
+                        <Heading size="sm" mb="3">
+                          📈 Spending Insights
+                        </Heading>
+                        {(() => {
+                          const categoryTotals: Record<string, number> = {};
+                          expenses.forEach((exp) => {
+                            categoryTotals[exp.category] =
+                              (categoryTotals[exp.category] || 0) + exp.amount;
+                          });
+                          const topCategory = Object.entries(categoryTotals).sort(
+                            (a, b) => b[1] - a[1]
+                          )[0];
+                          return (
+                            <Text fontSize="sm" color="gray.700">
+                              Your top spending category is <strong>{topCategory[0]}</strong> with{' '}
+                              <strong>{formatRWF(topCategory[1])}</strong>.
+                            </Text>
+                          );
+                        })()}
+                      </Box>
+                    )}
+                  </VStack>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
           </DrawerBody>
         </DrawerContent>
       </Drawer>
