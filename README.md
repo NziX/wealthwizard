@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/NziX/wealthwizard/main/public/logo.svg" alt="WealthWizard Logo" width="160" />
+</p>
+
 # 💎 WealthWizard - Complete Finance Management App
 
 ![Architecture](https://img.shields.io/badge/Architecture-React%20Context%20%2B%20Chakra%20UI-blue)
