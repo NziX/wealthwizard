@@ -35,7 +35,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     if (email && password) {
       toast({
         title: 'Login Successful',
-        description: 'Welcome to WealthWizard AI',
+        description: 'Welcome to WealthWizard',
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -79,7 +79,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 mb={1}
               />
               <Heading size="xl" color="brand.900" fontWeight="extrabold">
-                WealthWizard AI
+                WealthWizard
               </Heading>
               <Text color="gray.500">Sign in to manage your finances</Text>
             </VStack>

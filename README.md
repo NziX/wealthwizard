@@ -1,4 +1,4 @@
-# 💎 WealthWizard AI - Complete Finance Management App
+# 💎 WealthWizard - Complete Finance Management App
 
 ![Architecture](https://img.shields.io/badge/Architecture-React%20Context%20%2B%20Chakra%20UI-blue)
 ![TypeScript](https://img.shields.io/badge/Language-TypeScript-blue)

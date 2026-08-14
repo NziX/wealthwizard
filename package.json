@@ -1,7 +1,7 @@
 {
-  "name": "wealthwizard-ai",
+  "name": "wealthwizard",
   "version": "1.0.0",
-  "description": "WealthWizard AI - Your Personal Finance Assistant with Real-time State Management",
+  "description": "WealthWizard - Your Personal Finance Assistant with Real-time State Management",
   "private": true,
   "homepage": "./",
   "dependencies": {

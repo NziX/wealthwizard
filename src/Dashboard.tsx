@@ -1406,7 +1406,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             />
             <VStack align="start" spacing={0}>
               <Heading size="xl" color="white" fontWeight="extrabold" letterSpacing="tight">
-                WealthWizard AI
+                WealthWizard
               </Heading>
               <Text color="whiteAlpha.800" fontSize="sm">Your Personal AI Finance Assistant</Text>
             </VStack>
