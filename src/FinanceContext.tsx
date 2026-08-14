@@ -60,7 +60,7 @@ const INCOME_KEY = 'wealthwizard_income';
 const defaultState = {
   expenses: [],
   savingsGoals: [],
-  monthlyIncome: 500000, // Default 500,000 RWF
+  monthlyIncome: 0, // Default 0 RWF
 };
 
 // ============================================================================
@@ -207,7 +207,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // ========================================================================
   
   const setMonthlyIncome = (income: number): void => {
-    if (income > 0) {
+    if (income >= 0) {
       setMonthlyIncomeState(income);
     }
   };

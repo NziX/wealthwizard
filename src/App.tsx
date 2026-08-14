@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { FinanceProvider } from './FinanceContext';
 import Dashboard from './Dashboard';
+import Login from './Login';
 
 /**
  * App Component - Root application wrapper
@@ -11,11 +12,34 @@ import Dashboard from './Dashboard';
  * 2. FinanceProvider - For global finance state management
  */
 const App: React.FC = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const loggedIn = localStorage.getItem('wealthwizard_logged_in');
+    if (loggedIn === 'true') {
+      setIsLoggedIn(true);
+    }
+  }, []);
+
+  const handleLogin = () => {
+    localStorage.setItem('wealthwizard_logged_in', 'true');
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('wealthwizard_logged_in');
+    setIsLoggedIn(false);
+  };
+
   return (
     <ChakraProvider>
-      <FinanceProvider>
-        <Dashboard />
-      </FinanceProvider>
+      {isLoggedIn ? (
+        <FinanceProvider>
+          <Dashboard onLogout={handleLogout} />
+        </FinanceProvider>
+      ) : (
+        <Login onLogin={handleLogin} />
+      )}
     </ChakraProvider>
   );
 };

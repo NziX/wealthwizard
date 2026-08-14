@@ -1046,7 +1046,11 @@ const AIAdvisorDrawer: React.FC = () => {
 // MAIN DASHBOARD COMPONENT
 // ============================================================================
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onLogout?: () => void;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const { totalSpent, monthlyIncome, remainingBudget, expenses, savingsGoals } =
     useFinance();
 
@@ -1063,7 +1067,14 @@ const Dashboard: React.FC = () => {
             </Heading>
             <Text color="whiteAlpha.800">Your Personal AI Finance Assistant</Text>
           </VStack>
-          <SettingsDrawer />
+          <HStack>
+            {onLogout && (
+              <Button size="sm" onClick={onLogout} colorScheme="whiteAlpha" variant="outline">
+                Logout
+              </Button>
+            )}
+            <SettingsDrawer />
+          </HStack>
         </HStack>
 
         {/* Key Metrics Cards */}
