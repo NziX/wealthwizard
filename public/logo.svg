@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b132b" />
+      <stop offset="100%" stop-color="#1c2541" />
+    </linearGradient>
+    <linearGradient id="diamondGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="50%" stop-color="#4facfe" />
+      <stop offset="100%" stop-color="#005bea" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe066" />
+      <stop offset="50%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="500" height="500" rx="100" fill="url(#bgGrad)" />
+
+  <!-- Outer Glow Aura -->
+  <circle cx="250" cy="230" r="160" fill="#4facfe" opacity="0.15" filter="url(#glow)" />
+
+  <!-- Diamond Crystal Base -->
+  <g transform="translate(250, 240) scale(1.1)">
+    <!-- Top facets -->
+    <polygon points="0,-100 -80,-50 0,-30" fill="#38ef7d" opacity="0.9" />
+    <polygon points="0,-100 80,-50 0,-30" fill="#11998e" opacity="0.9" />
+    <polygon points="-80,-50 -120,-50 -80,-100 0,-100" fill="#4facfe" />
+    <polygon points="80,-50 120,-50 80,-100 0,-100" fill="#00f2fe" />
+    
+    <!-- Main Diamond Body -->
+    <polygon points="-120,-50 0,110 -80,-50" fill="#005bea" opacity="0.95" />
+    <polygon points="120,-50 0,110 80,-50" fill="#00c6ff" opacity="0.95" />
+    <polygon points="-80,-50 0,110 0,-30" fill="#2b5876" opacity="0.8" />
+    <polygon points="80,-50 0,110 0,-30" fill="#4e4376" opacity="0.8" />
+  </g>
+
+  <!-- Rising Growth Line Arrow & Magic Star -->
+  <g filter="url(#glow)">
+    <!-- Chart Arrow Path -->
+    <path d="M 100,320 L 180,260 L 230,290 L 340,150" fill="none" stroke="url(#goldGrad)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 100,320 L 180,260 L 230,290 L 340,150" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
+    
+    <!-- Magic Star Emblem -->
+    <g transform="translate(350, 140)">
+      <polygon points="0,-45 13,-14 45,0 13,14 0,45 -13,14 -45,0 -13,-14" fill="url(#goldGrad)" />
+      <polygon points="0,-25 7,-7 25,0 7,7 0,25 -7,7 -25,0 -7,-7" fill="#ffffff" />
+    </g>
+  </g>
+
+  <!-- Sparks -->
+  <circle cx="390" cy="100" r="6" fill="#ffe066" />
+  <circle cx="310" cy="100" r="4" fill="#00f2fe" />
+  <circle cx="110" cy="280" r="5" fill="#4facfe" />
+</svg>

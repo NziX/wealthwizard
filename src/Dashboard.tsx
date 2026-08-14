@@ -49,6 +49,7 @@ import {
   AlertDescription,
   Spacer,
   Avatar,
+  Image,
 } from '@chakra-ui/react';
 import {
   FiPlus,
@@ -1394,14 +1395,23 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     <Box minH="100vh" bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" py={8}>
       <Container maxW="4xl">
         {/* Header */}
-        <HStack justify="space-between" mb={8}>
-          <VStack align="start" spacing={0}>
-            <Heading size="2xl" color="white">
-              💎 WealthWizard
-            </Heading>
-            <Text color="whiteAlpha.800">Your Personal AI Finance Assistant</Text>
-          </VStack>
-          <HStack>
+        <HStack justify="space-between" mb={8} align="center">
+          <HStack spacing={3} align="center">
+            <Image
+              src={process.env.PUBLIC_URL + '/logo.svg'}
+              alt="WealthWizard Logo"
+              boxSize="52px"
+              borderRadius="xl"
+              boxShadow="0 4px 12px rgba(0,0,0,0.25)"
+            />
+            <VStack align="start" spacing={0}>
+              <Heading size="xl" color="white" fontWeight="extrabold" letterSpacing="tight">
+                WealthWizard AI
+              </Heading>
+              <Text color="whiteAlpha.800" fontSize="sm">Your Personal AI Finance Assistant</Text>
+            </VStack>
+          </HStack>
+          <HStack spacing={2}>
             {onLogout && (
               <Button size="sm" onClick={onLogout} colorScheme="whiteAlpha" variant="outline">
                 Logout

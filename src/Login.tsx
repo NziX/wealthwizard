@@ -12,7 +12,8 @@ import {
   useToast,
   InputGroup,
   InputRightElement,
-  IconButton
+  IconButton,
+  Image
 } from '@chakra-ui/react';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -69,6 +70,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         >
           <VStack spacing="8">
             <VStack spacing="3" textAlign="center">
+              <Image
+                src={process.env.PUBLIC_URL + '/logo.svg'}
+                alt="WealthWizard Logo"
+                boxSize="80px"
+                borderRadius="2xl"
+                shadow="md"
+                mb={1}
+              />
               <Heading size="xl" color="brand.900" fontWeight="extrabold">
                 WealthWizard AI
               </Heading>
