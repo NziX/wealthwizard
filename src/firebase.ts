@@ -4,7 +4,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDix2mPUiFhMj3T7M0nIVm0MhVfcz9jTlg",
+  apiKey: "AIzaSyDix2mPUiFhMj3T7M0nIVmOMhVfcz9jTlg",
   authDomain: "wealthwizard-58088.firebaseapp.com",
   projectId: "wealthwizard-58088",
   storageBucket: "wealthwizard-58088.firebasestorage.app",
