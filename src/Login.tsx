@@ -62,7 +62,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
       });
       onLogin();
     } catch (error: any) {
-      let message = 'Login failed. Please try again.';
+      let message = `Login failed: ${error.message || 'Please try again.'} (${error.code || 'unknown'})`;
       if (error.code === 'auth/user-not-found') message = 'No account found with this email. Please sign up.';
       if (error.code === 'auth/wrong-password') message = 'Incorrect password. Please try again.';
       if (error.code === 'auth/invalid-email') message = 'Please enter a valid email address.';
@@ -72,7 +72,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
         title: 'Login Failed',
         description: message,
         status: 'error',
-        duration: 4000,
+        duration: 6000,
         isClosable: true,
         position: 'top-right',
       });

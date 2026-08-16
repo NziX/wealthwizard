@@ -88,7 +88,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
       });
       onSignUp();
     } catch (error: any) {
-      let message = 'Failed to create account. Please try again.';
+      let message = `Failed to create account: ${error.message || 'Please try again.'} (${error.code || 'unknown'})`;
       if (error.code === 'auth/email-already-in-use') message = 'This email is already registered. Please log in.';
       if (error.code === 'auth/invalid-email') message = 'Please enter a valid email address.';
       if (error.code === 'auth/weak-password') message = 'Password is too weak. Use at least 6 characters.';
@@ -96,7 +96,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
         title: 'Sign Up Failed',
         description: message,
         status: 'error',
-        duration: 4000,
+        duration: 6000,
         isClosable: true,
         position: 'top-right',
       });
