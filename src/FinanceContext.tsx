@@ -1,4 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import {
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  getDoc,
+} from 'firebase/firestore';
+import { db } from './firebase';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -27,25 +36,26 @@ export interface FinanceContextType {
   expenses: Expense[];
   savingsGoals: SavingsGoal[];
   monthlyIncome: number;
-  
+  loading: boolean;
+
   // Computed values
   totalSpent: number;
   remainingBudget: number;
   averageDailySpend: number;
   goalProgress: number;
-  
+
   // Actions
-  addExpense: (expense: Omit<Expense, 'id' | 'timestamp'>) => Expense;
-  deleteExpense: (id: string) => void;
-  updateExpense: (id: string, expense: Partial<Expense>) => void;
-  
-  addGoal: (goal: Omit<SavingsGoal, 'id'>) => SavingsGoal;
-  deleteGoal: (id: string) => void;
-  updateGoal: (id: string, goal: Partial<SavingsGoal>) => void;
-  updateSavingsProgress: (id: string, amount: number) => void;
-  
-  setMonthlyIncome: (income: number) => void;
-  clearAllData: () => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'timestamp'>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  updateExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
+
+  addGoal: (goal: Omit<SavingsGoal, 'id'>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
+  updateGoal: (id: string, goal: Partial<SavingsGoal>) => Promise<void>;
+  updateSavingsProgress: (id: string, amount: number) => Promise<void>;
+
+  setMonthlyIncome: (income: number) => Promise<void>;
+  clearAllData: () => Promise<void>;
 }
 
 // ============================================================================
@@ -54,97 +64,66 @@ export interface FinanceContextType {
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'wealthwizard_data';
-const INCOME_KEY = 'wealthwizard_income';
-
-const defaultState = {
-  expenses: [],
-  savingsGoals: [],
-  monthlyIncome: 0, // Default 0 RWF
-};
-
 // ============================================================================
 // FINANCE PROVIDER COMPONENT
 // ============================================================================
 
-export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [expenses, setExpenses] = useState<Expense[]>(defaultState.expenses);
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(defaultState.savingsGoals);
-  const [monthlyIncome, setMonthlyIncomeState] = useState(defaultState.monthlyIncome);
+export const FinanceProvider: React.FC<{ children: React.ReactNode; userId: string }> = ({
+  children,
+  userId,
+}) => {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
+  const [monthlyIncome, setMonthlyIncomeState] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // Firestore paths for this user
+  const userDocRef = doc(db, 'users', userId);
+  const expensesRef = collection(db, 'users', userId, 'expenses');
+  const goalsRef = collection(db, 'users', userId, 'goals');
 
   // ========================================================================
-  // LOCAL STORAGE - LOAD ON MOUNT
+  // FIRESTORE - REAL-TIME LISTENERS
   // ========================================================================
-  
+
   useEffect(() => {
-    try {
-      const storedExpenses = localStorage.getItem(STORAGE_KEY);
-      const storedIncome = localStorage.getItem(INCOME_KEY);
-      
-      if (storedExpenses) {
-        setExpenses(JSON.parse(storedExpenses));
+    // Listen to income document
+    const unsubIncome = onSnapshot(userDocRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setMonthlyIncomeState(data.monthlyIncome ?? 0);
       }
-      if (storedIncome) {
-        setMonthlyIncomeState(JSON.parse(storedIncome));
-      }
-      
-      // Load goals from localStorage (assuming we want to persist them too)
-      const storedGoals = localStorage.getItem('wealthwizard_goals');
-      if (storedGoals) {
-        setSavingsGoals(JSON.parse(storedGoals));
-      }
-    } catch (error) {
-      console.error('Failed to load from localStorage:', error);
-    }
-  }, []);
+    });
 
-  // ========================================================================
-  // LOCAL STORAGE - PERSIST EXPENSES
-  // ========================================================================
-  
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-    } catch (error) {
-      console.error('Failed to save expenses to localStorage:', error);
-    }
-  }, [expenses]);
+    // Listen to expenses collection
+    const unsubExpenses = onSnapshot(expensesRef, (snap) => {
+      const data: Expense[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Expense));
+      data.sort((a, b) => b.timestamp - a.timestamp);
+      setExpenses(data);
+    });
 
-  // ========================================================================
-  // LOCAL STORAGE - PERSIST GOALS
-  // ========================================================================
-  
-  useEffect(() => {
-    try {
-      localStorage.setItem('wealthwizard_goals', JSON.stringify(savingsGoals));
-    } catch (error) {
-      console.error('Failed to save goals to localStorage:', error);
-    }
-  }, [savingsGoals]);
+    // Listen to goals collection
+    const unsubGoals = onSnapshot(goalsRef, (snap) => {
+      const data: SavingsGoal[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as SavingsGoal));
+      setSavingsGoals(data);
+      setLoading(false);
+    });
 
-  // ========================================================================
-  // LOCAL STORAGE - PERSIST INCOME
-  // ========================================================================
-  
-  useEffect(() => {
-    try {
-      localStorage.setItem(INCOME_KEY, JSON.stringify(monthlyIncome));
-    } catch (error) {
-      console.error('Failed to save income to localStorage:', error);
-    }
-  }, [monthlyIncome]);
+    return () => {
+      unsubIncome();
+      unsubExpenses();
+      unsubGoals();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   // ========================================================================
   // COMPUTED VALUES
   // ========================================================================
-  
+
   const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const remainingBudget = monthlyIncome - totalSpent;
-  
-  // Calculate average daily spend (assuming month has 30 days)
   const averageDailySpend = totalSpent / 30;
-  
-  // Calculate overall goal progress (0-100)
   const totalTargetAmount = savingsGoals.reduce((sum, goal) => sum + goal.targetAmount, 0);
   const totalCurrentSavings = savingsGoals.reduce((sum, goal) => sum + goal.currentSavings, 0);
   const goalProgress = totalTargetAmount > 0 ? (totalCurrentSavings / totalTargetAmount) * 100 : 0;
@@ -152,92 +131,89 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // ========================================================================
   // ACTION HANDLERS - EXPENSES
   // ========================================================================
-  
-  const addExpense = (expense: Omit<Expense, 'id' | 'timestamp'>): Expense => {
-    const newExpense: Expense = {
-      ...expense,
-      id: `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now(),
-    };
-    
-    setExpenses((prev) => [newExpense, ...prev]);
-    return newExpense;
+
+  const addExpense = async (expense: Omit<Expense, 'id' | 'timestamp'>): Promise<void> => {
+    const id = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newExpense: Expense = { ...expense, id, timestamp: Date.now() };
+    await setDoc(doc(expensesRef, id), newExpense);
   };
 
-  const deleteExpense = (id: string): void => {
-    setExpenses((prev) => prev.filter((exp) => exp.id !== id));
+  const deleteExpense = async (id: string): Promise<void> => {
+    await deleteDoc(doc(expensesRef, id));
   };
 
-  const updateExpense = (id: string, updates: Partial<Expense>): void => {
-    setExpenses((prev) =>
-      prev.map((exp) => (exp.id === id ? { ...exp, ...updates } : exp))
-    );
+  const updateExpense = async (id: string, updates: Partial<Expense>): Promise<void> => {
+    const ref = doc(expensesRef, id);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      await setDoc(ref, { ...snap.data(), ...updates });
+    }
   };
 
   // ========================================================================
   // ACTION HANDLERS - GOALS
   // ========================================================================
-  
-  const addGoal = (goal: Omit<SavingsGoal, 'id'>): SavingsGoal => {
-    const newGoal: SavingsGoal = {
-      ...goal,
-      id: `goal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    };
-    
-    setSavingsGoals((prev) => [newGoal, ...prev]);
-    return newGoal;
+
+  const addGoal = async (goal: Omit<SavingsGoal, 'id'>): Promise<void> => {
+    const id = `goal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newGoal: SavingsGoal = { ...goal, id };
+    await setDoc(doc(goalsRef, id), newGoal);
   };
 
-  const deleteGoal = (id: string): void => {
-    setSavingsGoals((prev) => prev.filter((goal) => goal.id !== id));
+  const deleteGoal = async (id: string): Promise<void> => {
+    await deleteDoc(doc(goalsRef, id));
   };
 
-  const updateGoal = (id: string, updates: Partial<SavingsGoal>): void => {
-    setSavingsGoals((prev) =>
-      prev.map((goal) => (goal.id === id ? { ...goal, ...updates } : goal))
-    );
+  const updateGoal = async (id: string, updates: Partial<SavingsGoal>): Promise<void> => {
+    const ref = doc(goalsRef, id);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      await setDoc(ref, { ...snap.data(), ...updates });
+    }
   };
 
-  const updateSavingsProgress = (id: string, amount: number): void => {
-    updateGoal(id, { currentSavings: amount });
+  const updateSavingsProgress = async (id: string, amount: number): Promise<void> => {
+    await updateGoal(id, { currentSavings: amount });
   };
 
   // ========================================================================
   // ACTION HANDLERS - SETTINGS
   // ========================================================================
-  
-  const setMonthlyIncome = (income: number): void => {
+
+  const setMonthlyIncome = async (income: number): Promise<void> => {
     if (income >= 0) {
+      await setDoc(userDocRef, { monthlyIncome: income }, { merge: true });
       setMonthlyIncomeState(income);
     }
   };
 
-  const clearAllData = (): void => {
-    setExpenses([]);
-    setSavingsGoals([]);
-    setMonthlyIncomeState(defaultState.monthlyIncome);
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem('wealthwizard_goals');
-    localStorage.removeItem(INCOME_KEY);
+  const clearAllData = async (): Promise<void> => {
+    // Delete all expenses
+    for (const expense of expenses) {
+      await deleteDoc(doc(expensesRef, expense.id));
+    }
+    // Delete all goals
+    for (const goal of savingsGoals) {
+      await deleteDoc(doc(goalsRef, goal.id));
+    }
+    // Reset income
+    await setDoc(userDocRef, { monthlyIncome: 0 }, { merge: true });
+    setMonthlyIncomeState(0);
   };
 
   // ========================================================================
   // PROVIDER VALUE
   // ========================================================================
-  
+
   const value: FinanceContextType = {
-    // State
     expenses,
     savingsGoals,
     monthlyIncome,
-    
-    // Computed
+    loading,
     totalSpent,
     remainingBudget,
     averageDailySpend,
     goalProgress,
-    
-    // Actions
     addExpense,
     deleteExpense,
     updateExpense,

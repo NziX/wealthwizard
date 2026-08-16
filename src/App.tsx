@@ -3,42 +3,74 @@ import { ChakraProvider } from '@chakra-ui/react';
 import { FinanceProvider } from './FinanceContext';
 import Dashboard from './Dashboard';
 import Login from './Login';
+import SignUp from './SignUp';
+import { auth } from './firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
-/**
- * App Component - Root application wrapper
- * 
- * This component wraps the entire application with:
- * 1. ChakraProvider - For Chakra UI theming and component system
- * 2. FinanceProvider - For global finance state management
- */
+type View = 'login' | 'signup' | 'dashboard';
+
 const App: React.FC = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [view, setView] = useState<View>('login');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loggedIn = localStorage.getItem('wealthwizard_logged_in');
-    if (loggedIn === 'true') {
-      setIsLoggedIn(true);
-    }
+    // Listen for Firebase auth state changes
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        setView('dashboard');
+      } else {
+        setView('login');
+      }
+      setLoading(false);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
-  const handleLogin = () => {
-    localStorage.setItem('wealthwizard_logged_in', 'true');
-    setIsLoggedIn(true);
+  const handleLogout = async () => {
+    const { signOut } = await import('firebase/auth');
+    await signOut(auth);
+    setView('login');
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('wealthwizard_logged_in');
-    setIsLoggedIn(false);
-  };
+  if (loading) {
+    return (
+      <ChakraProvider>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          fontSize: '20px',
+          fontFamily: 'sans-serif',
+        }}>
+          Loading WealthWizard...
+        </div>
+      </ChakraProvider>
+    );
+  }
 
   return (
     <ChakraProvider>
-      {isLoggedIn ? (
-        <FinanceProvider>
-          <Dashboard onLogout={handleLogout} />
+      {view === 'dashboard' && user ? (
+        <FinanceProvider userId={user.uid}>
+          <Dashboard onLogout={handleLogout} userEmail={user.email || ''} />
         </FinanceProvider>
+      ) : view === 'signup' ? (
+        <SignUp
+          onSignUp={() => setView('dashboard')}
+          onGoToLogin={() => setView('login')}
+        />
       ) : (
-        <Login onLogin={handleLogin} />
+        <Login
+          onLogin={() => setView('dashboard')}
+          onGoToSignUp={() => setView('signup')}
+        />
       )}
     </ChakraProvider>
   );

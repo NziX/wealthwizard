@@ -1383,9 +1383,10 @@ const AIAdvisorDrawer: React.FC = () => {
 
 interface DashboardProps {
   onLogout?: () => void;
+  userEmail?: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onLogout, userEmail }) => {
   const { totalSpent, monthlyIncome, remainingBudget, expenses, savingsGoals } =
     useFinance();
 
@@ -1412,6 +1413,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             </VStack>
           </HStack>
           <HStack spacing={2}>
+            {userEmail && (
+              <Text color="whiteAlpha.700" fontSize="xs" display={{ base: 'none', md: 'block' }}>
+                {userEmail}
+              </Text>
+            )}
             {onLogout && (
               <Button size="sm" onClick={onLogout} colorScheme="whiteAlpha" variant="outline">
                 Logout

@@ -10,6 +10,7 @@
     "@emotion/styled": "^11.11.0",
     "ajv": "^8.20.0",
     "ajv-keywords": "^5.1.0",
+    "firebase": "^12.17.1",
     "framer-motion": "^10.16.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

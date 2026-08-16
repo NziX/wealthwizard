@@ -18,29 +18,55 @@ import {
 } from '@chakra-ui/react';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from './firebase';
 
 const MotionBox = motion(Box);
 
-interface LoginProps {
-  onLogin: () => void;
-  onGoToSignUp: () => void;
+interface SignUpProps {
+  onSignUp: () => void;
+  onGoToLogin: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
+const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
+
+    if (!email || !password || !confirmPassword) {
       toast({
         title: 'Missing Fields',
-        description: 'Please enter both email and password.',
+        description: 'Please fill in all fields.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'top-right',
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast({
+        title: 'Passwords Do Not Match',
+        description: 'Please make sure both passwords are the same.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+        position: 'top-right',
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: 'Password Too Short',
+        description: 'Password must be at least 6 characters.',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -51,25 +77,23 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
 
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, email, password);
       toast({
-        title: 'Login Successful',
-        description: 'Welcome back to WealthWizard!',
+        title: 'Account Created!',
+        description: 'Welcome to WealthWizard! Your account is ready.',
         status: 'success',
         duration: 3000,
         isClosable: true,
         position: 'top-right',
       });
-      onLogin();
+      onSignUp();
     } catch (error: any) {
-      let message = 'Login failed. Please try again.';
-      if (error.code === 'auth/user-not-found') message = 'No account found with this email. Please sign up.';
-      if (error.code === 'auth/wrong-password') message = 'Incorrect password. Please try again.';
+      let message = 'Failed to create account. Please try again.';
+      if (error.code === 'auth/email-already-in-use') message = 'This email is already registered. Please log in.';
       if (error.code === 'auth/invalid-email') message = 'Please enter a valid email address.';
-      if (error.code === 'auth/too-many-requests') message = 'Too many failed attempts. Please wait and try again.';
-      if (error.code === 'auth/invalid-credential') message = 'Incorrect email or password. Please try again.';
+      if (error.code === 'auth/weak-password') message = 'Password is too weak. Use at least 6 characters.';
       toast({
-        title: 'Login Failed',
+        title: 'Sign Up Failed',
         description: message,
         status: 'error',
         duration: 4000,
@@ -105,76 +129,81 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
                 shadow="md"
                 mb={1}
               />
-              <Heading size="xl" color="brand.900" fontWeight="extrabold">
-                WealthWizard
+              <Heading size="xl" fontWeight="extrabold">
+                Create Account
               </Heading>
-              <Text color="gray.500">Sign in to manage your finances</Text>
+              <Text color="gray.500">Join WealthWizard and take control of your finances</Text>
             </VStack>
 
             <Box w="100%">
-              <form onSubmit={handleLogin}>
+              <form onSubmit={handleSignUp}>
                 <VStack spacing="5">
-                  <FormControl id="email" isRequired>
+                  <FormControl id="signup-email" isRequired>
                     <FormLabel color="gray.700">Email address</FormLabel>
-                    <InputGroup>
-                      <Input
-                        type="email"
-                        placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        focusBorderColor="brand.500"
-                        size="lg"
-                        borderRadius="md"
-                      />
-                    </InputGroup>
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      focusBorderColor="blue.500"
+                      size="lg"
+                    />
                   </FormControl>
 
-                  <FormControl id="password" isRequired>
+                  <FormControl id="signup-password" isRequired>
                     <FormLabel color="gray.700">Password</FormLabel>
-                    <InputGroup>
+                    <InputGroup size="lg">
                       <Input
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="Enter your password"
+                        placeholder="Minimum 6 characters"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        focusBorderColor="brand.500"
-                        size="lg"
-                        borderRadius="md"
+                        focusBorderColor="blue.500"
+                        pr="4.5rem"
                       />
-                      <InputRightElement h="full">
+                      <InputRightElement>
                         <IconButton
-                          variant="ghost"
                           aria-label={showPassword ? 'Hide password' : 'Show password'}
                           icon={showPassword ? <FiEyeOff /> : <FiEye />}
+                          variant="ghost"
+                          size="sm"
                           onClick={() => setShowPassword(!showPassword)}
-                          color="gray.400"
                         />
                       </InputRightElement>
                     </InputGroup>
+                  </FormControl>
+
+                  <FormControl id="confirm-password" isRequired>
+                    <FormLabel color="gray.700">Confirm Password</FormLabel>
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Repeat your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      focusBorderColor="blue.500"
+                      size="lg"
+                    />
                   </FormControl>
 
                   <Button
                     type="submit"
                     colorScheme="blue"
                     size="lg"
-                    fontSize="md"
-                    w="100%"
-                    mt="4"
+                    w="full"
                     isLoading={isLoading}
-                    loadingText="Signing In..."
-                    _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
-                    transition="all 0.2s"
+                    loadingText="Creating Account..."
+                    mt={2}
                   >
-                    Sign In
+                    Create Account
                   </Button>
                 </VStack>
               </form>
             </Box>
 
             <Text color="gray.500" fontSize="sm">
-              Don't have an account?{' '}
-              <Link color="blue.500" fontWeight="bold" onClick={onGoToSignUp} cursor="pointer">
-                Create Account
+              Already have an account?{' '}
+              <Link color="blue.500" fontWeight="bold" onClick={onGoToLogin} cursor="pointer">
+                Sign In
               </Link>
             </Text>
           </VStack>
@@ -184,4 +213,4 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
   );
 };
 
-export default Login;
+export default SignUp;
