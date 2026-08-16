@@ -15,11 +15,14 @@ import {
   IconButton,
   Image,
   Link,
+  Divider,
+  HStack,
 } from '@chakra-ui/react';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
 import { motion } from 'framer-motion';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from './firebase';
+import { createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from './firebase';
 
 const MotionBox = motion(Box);
 
@@ -34,7 +37,13 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const toast = useToast();
+
+  const validateGmail = (emailVal: string) => {
+    const cleanEmail = emailVal.trim().toLowerCase();
+    return cleanEmail.endsWith('@gmail.com') || cleanEmail.endsWith('@googlemail.com');
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +54,18 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
         description: 'Please fill in all fields.',
         status: 'error',
         duration: 3000,
+        isClosable: true,
+        position: 'top-right',
+      });
+      return;
+    }
+
+    if (!validateGmail(email)) {
+      toast({
+        title: 'Only Gmail Accounts Allowed',
+        description: 'Please enter a valid @gmail.com address.',
+        status: 'error',
+        duration: 4000,
         isClosable: true,
         position: 'top-right',
       });
@@ -77,20 +98,23 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
 
     setIsLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      // Send real email verification to their Gmail inbox
+      await sendEmailVerification(userCred.user);
+
       toast({
-        title: 'Account Created!',
-        description: 'Welcome to WealthWizard! Your account is ready.',
+        title: 'Account Created & Verification Sent!',
+        description: 'A verification link has been sent to your Gmail inbox. Welcome to WealthWizard!',
         status: 'success',
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
         position: 'top-right',
       });
       onSignUp();
     } catch (error: any) {
       let message = `Failed to create account: ${error.message || 'Please try again.'} (${error.code || 'unknown'})`;
-      if (error.code === 'auth/email-already-in-use') message = 'This email is already registered. Please log in.';
-      if (error.code === 'auth/invalid-email') message = 'Please enter a valid email address.';
+      if (error.code === 'auth/email-already-in-use') message = 'This Gmail address is already registered. Please log in.';
+      if (error.code === 'auth/invalid-email') message = 'Please enter a valid @gmail.com address.';
       if (error.code === 'auth/weak-password') message = 'Password is too weak. Use at least 6 characters.';
       toast({
         title: 'Sign Up Failed',
@@ -102,6 +126,33 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setIsGoogleLoading(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+      toast({
+        title: 'Gmail Verified & Signed In!',
+        description: 'Successfully authenticated with your real Google/Gmail account.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+        position: 'top-right',
+      });
+      onSignUp();
+    } catch (error: any) {
+      toast({
+        title: 'Google Sign In Failed',
+        description: error.message || 'Could not verify Gmail account.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top-right',
+      });
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -119,8 +170,8 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
           boxShadow={{ base: 'none', sm: 'xl' }}
           borderRadius={{ base: 'none', sm: '2xl' }}
         >
-          <VStack spacing="8">
-            <VStack spacing="3" textAlign="center">
+          <VStack spacing="6">
+            <VStack spacing="2" textAlign="center">
               <Image
                 src={process.env.PUBLIC_URL + '/logo.svg'}
                 alt="WealthWizard Logo"
@@ -132,17 +183,43 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
               <Heading size="xl" fontWeight="extrabold">
                 Create Account
               </Heading>
-              <Text color="gray.500">Join WealthWizard and take control of your finances</Text>
+              <Text color="gray.500" fontSize="sm">
+                Only valid <b>@gmail.com</b> accounts are allowed
+              </Text>
             </VStack>
+
+            {/* Google 1-Click Verification Button */}
+            <Button
+              w="full"
+              size="lg"
+              variant="outline"
+              leftIcon={<FcGoogle size={22} />}
+              onClick={handleGoogleSignUp}
+              isLoading={isGoogleLoading}
+              borderColor="gray.300"
+              _hover={{ bg: 'gray.50' }}
+            >
+              Sign up with Google (Gmail)
+            </Button>
+
+            <HStack w="full">
+              <Divider />
+              <Text fontSize="xs" color="gray.400" whiteSpace="nowrap">
+                OR GMAIL FORM
+              </Text>
+              <Divider />
+            </HStack>
 
             <Box w="100%">
               <form onSubmit={handleSignUp}>
-                <VStack spacing="5">
+                <VStack spacing="4">
                   <FormControl id="signup-email" isRequired>
-                    <FormLabel color="gray.700">Email address</FormLabel>
+                    <FormLabel color="gray.700" fontSize="sm">
+                      Gmail Address (@gmail.com)
+                    </FormLabel>
                     <Input
                       type="email"
-                      placeholder="Enter your email"
+                      placeholder="yourname@gmail.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       focusBorderColor="blue.500"
@@ -151,7 +228,9 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
                   </FormControl>
 
                   <FormControl id="signup-password" isRequired>
-                    <FormLabel color="gray.700">Password</FormLabel>
+                    <FormLabel color="gray.700" fontSize="sm">
+                      Password
+                    </FormLabel>
                     <InputGroup size="lg">
                       <Input
                         type={showPassword ? 'text' : 'password'}
@@ -174,7 +253,9 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
                   </FormControl>
 
                   <FormControl id="confirm-password" isRequired>
-                    <FormLabel color="gray.700">Confirm Password</FormLabel>
+                    <FormLabel color="gray.700" fontSize="sm">
+                      Confirm Password
+                    </FormLabel>
                     <Input
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Repeat your password"
@@ -191,10 +272,10 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onGoToLogin }) => {
                     size="lg"
                     w="full"
                     isLoading={isLoading}
-                    loadingText="Creating Account..."
+                    loadingText="Registering..."
                     mt={2}
                   >
-                    Create Account
+                    Register with Gmail
                   </Button>
                 </VStack>
               </form>

@@ -15,11 +15,14 @@ import {
   IconButton,
   Image,
   Link,
+  Divider,
+  HStack,
 } from '@chakra-ui/react';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
 import { motion } from 'framer-motion';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from './firebase';
+import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from './firebase';
 
 const MotionBox = motion(Box);
 
@@ -33,7 +36,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const toast = useToast();
+
+  const validateGmail = (emailVal: string) => {
+    const cleanEmail = emailVal.trim().toLowerCase();
+    return cleanEmail.endsWith('@gmail.com') || cleanEmail.endsWith('@googlemail.com');
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,9 +58,21 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
       return;
     }
 
+    if (!validateGmail(email)) {
+      toast({
+        title: 'Only Gmail Accounts Allowed',
+        description: 'Please enter a valid @gmail.com address.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+        position: 'top-right',
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email.trim(), password);
       toast({
         title: 'Login Successful',
         description: 'Welcome back to WealthWizard!',
@@ -63,9 +84,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
       onLogin();
     } catch (error: any) {
       let message = `Login failed: ${error.message || 'Please try again.'} (${error.code || 'unknown'})`;
-      if (error.code === 'auth/user-not-found') message = 'No account found with this email. Please sign up.';
+      if (error.code === 'auth/user-not-found') message = 'No account found with this Gmail. Please sign up first.';
       if (error.code === 'auth/wrong-password') message = 'Incorrect password. Please try again.';
-      if (error.code === 'auth/invalid-email') message = 'Please enter a valid email address.';
+      if (error.code === 'auth/invalid-email') message = 'Please enter a valid @gmail.com address.';
       if (error.code === 'auth/too-many-requests') message = 'Too many failed attempts. Please wait and try again.';
       if (error.code === 'auth/invalid-credential') message = 'Incorrect email or password. Please try again.';
       toast({
@@ -78,6 +99,33 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+      toast({
+        title: 'Gmail Verified & Signed In!',
+        description: 'Welcome back to WealthWizard!',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+        position: 'top-right',
+      });
+      onLogin();
+    } catch (error: any) {
+      toast({
+        title: 'Google Sign In Failed',
+        description: error.message || 'Could not verify Gmail account.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top-right',
+      });
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -95,8 +143,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
           boxShadow={{ base: 'none', sm: 'xl' }}
           borderRadius={{ base: 'none', sm: '2xl' }}
         >
-          <VStack spacing="8">
-            <VStack spacing="3" textAlign="center">
+          <VStack spacing="6">
+            <VStack spacing="2" textAlign="center">
               <Image
                 src={process.env.PUBLIC_URL + '/logo.svg'}
                 alt="WealthWizard Logo"
@@ -108,18 +156,44 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
               <Heading size="xl" color="brand.900" fontWeight="extrabold">
                 WealthWizard
               </Heading>
-              <Text color="gray.500">Sign in to manage your finances</Text>
+              <Text color="gray.500" fontSize="sm">
+                Sign in with your verified <b>Gmail</b> account
+              </Text>
             </VStack>
+
+            {/* Google 1-Click Verification Button */}
+            <Button
+              w="full"
+              size="lg"
+              variant="outline"
+              leftIcon={<FcGoogle size={22} />}
+              onClick={handleGoogleLogin}
+              isLoading={isGoogleLoading}
+              borderColor="gray.300"
+              _hover={{ bg: 'gray.50' }}
+            >
+              Sign in with Google (Gmail)
+            </Button>
+
+            <HStack w="full">
+              <Divider />
+              <Text fontSize="xs" color="gray.400" whiteSpace="nowrap">
+                OR GMAIL & PASSWORD
+              </Text>
+              <Divider />
+            </HStack>
 
             <Box w="100%">
               <form onSubmit={handleLogin}>
-                <VStack spacing="5">
+                <VStack spacing="4">
                   <FormControl id="email" isRequired>
-                    <FormLabel color="gray.700">Email address</FormLabel>
+                    <FormLabel color="gray.700" fontSize="sm">
+                      Gmail address
+                    </FormLabel>
                     <InputGroup>
                       <Input
                         type="email"
-                        placeholder="Enter your email"
+                        placeholder="yourname@gmail.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         focusBorderColor="brand.500"
@@ -130,7 +204,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
                   </FormControl>
 
                   <FormControl id="password" isRequired>
-                    <FormLabel color="gray.700">Password</FormLabel>
+                    <FormLabel color="gray.700" fontSize="sm">
+                      Password
+                    </FormLabel>
                     <InputGroup>
                       <Input
                         type={showPassword ? 'text' : 'password'}
@@ -159,7 +235,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
                     size="lg"
                     fontSize="md"
                     w="100%"
-                    mt="4"
+                    mt="2"
                     isLoading={isLoading}
                     loadingText="Signing In..."
                     _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}

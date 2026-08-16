@@ -1,6 +1,6 @@
 // Firebase Configuration for WealthWizard
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -16,8 +16,9 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase Authentication
+// Initialize Firebase Authentication & Google Provider
 export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
 // Initialize Firestore Database
 export const db = getFirestore(app);
