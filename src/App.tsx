@@ -4,22 +4,34 @@ import { FinanceProvider } from './FinanceContext';
 import Dashboard from './Dashboard';
 import Login from './Login';
 import SignUp from './SignUp';
+import VerifyEmail from './VerifyEmail';
 import { auth } from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 
-type View = 'login' | 'signup' | 'dashboard';
+type View = 'login' | 'signup' | 'verify' | 'dashboard';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<View>('login');
   const [loading, setLoading] = useState(true);
 
+  const checkUserVerified = (firebaseUser: User) => {
+    const isGoogleProvider = firebaseUser.providerData.some(
+      (p) => p.providerId === 'google.com'
+    );
+    return isGoogleProvider || firebaseUser.emailVerified;
+  };
+
   useEffect(() => {
     // Listen for Firebase auth state changes
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        setView('dashboard');
+        if (checkUserVerified(firebaseUser)) {
+          setView('dashboard');
+        } else {
+          setView('verify');
+        }
       } else {
         setView('login');
       }
@@ -31,8 +43,8 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogout = async () => {
-    const { signOut } = await import('firebase/auth');
     await signOut(auth);
+    setUser(null);
     setView('login');
   };
 
@@ -61,14 +73,32 @@ const App: React.FC = () => {
         <FinanceProvider userId={user.uid}>
           <Dashboard onLogout={handleLogout} userEmail={user.email || ''} />
         </FinanceProvider>
+      ) : view === 'verify' && user ? (
+        <VerifyEmail
+          user={user}
+          onVerified={() => setView('dashboard')}
+          onLogout={handleLogout}
+        />
       ) : view === 'signup' ? (
         <SignUp
-          onSignUp={() => setView('dashboard')}
+          onSignUp={() => {
+            if (auth.currentUser && checkUserVerified(auth.currentUser)) {
+              setView('dashboard');
+            } else {
+              setView('verify');
+            }
+          }}
           onGoToLogin={() => setView('login')}
         />
       ) : (
         <Login
-          onLogin={() => setView('dashboard')}
+          onLogin={() => {
+            if (auth.currentUser && checkUserVerified(auth.currentUser)) {
+              setView('dashboard');
+            } else {
+              setView('verify');
+            }
+          }}
           onGoToSignUp={() => setView('signup')}
         />
       )}
