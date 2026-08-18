@@ -3,112 +3,37 @@ import {
   Box,
   Button,
   Container,
-  FormControl,
-  FormLabel,
   Heading,
-  Input,
   VStack,
   Text,
   useToast,
-  InputGroup,
-  InputRightElement,
-  IconButton,
   Image,
-  Link,
-  Divider,
+  Badge,
   HStack,
 } from '@chakra-ui/react';
-import { FiEye, FiEyeOff } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
+import { FiShield, FiZap, FiCloud } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from './firebase';
 
 const MotionBox = motion(Box);
 
 interface LoginProps {
   onLogin: () => void;
-  onGoToSignUp: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const toast = useToast();
-
-  const validateGmail = (emailVal: string) => {
-    const cleanEmail = emailVal.trim().toLowerCase();
-    return cleanEmail.endsWith('@gmail.com') || cleanEmail.endsWith('@googlemail.com');
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast({
-        title: 'Missing Fields',
-        description: 'Please enter both email and password.',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-        position: 'top-right',
-      });
-      return;
-    }
-
-    if (!validateGmail(email)) {
-      toast({
-        title: 'Only Gmail Accounts Allowed',
-        description: 'Please enter a valid @gmail.com address.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-        position: 'top-right',
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      toast({
-        title: 'Login Successful',
-        description: 'Welcome back to WealthWizard!',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-        position: 'top-right',
-      });
-      onLogin();
-    } catch (error: any) {
-      let message = `Login failed: ${error.message || 'Please try again.'} (${error.code || 'unknown'})`;
-      if (error.code === 'auth/user-not-found') message = 'No account found with this Gmail. Please sign up first.';
-      if (error.code === 'auth/wrong-password') message = 'Incorrect password. Please try again.';
-      if (error.code === 'auth/invalid-email') message = 'Please enter a valid @gmail.com address.';
-      if (error.code === 'auth/too-many-requests') message = 'Too many failed attempts. Please wait and try again.';
-      if (error.code === 'auth/invalid-credential') message = 'Incorrect email or password. Please try again.';
-      toast({
-        title: 'Login Failed',
-        description: message,
-        status: 'error',
-        duration: 6000,
-        isClosable: true,
-        position: 'top-right',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
       toast({
-        title: 'Gmail Verified & Signed In!',
-        description: 'Welcome back to WealthWizard!',
+        title: 'Google Sign In Successful',
+        description: 'Welcome to WealthWizard!',
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -116,11 +41,18 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
       });
       onLogin();
     } catch (error: any) {
+      let message = error.message || 'Could not authenticate with Google.';
+      if (error.code === 'auth/unauthorized-domain') {
+        message = 'Please add your Vercel domain to Firebase Authorized Domains list.';
+      }
+      if (error.code === 'auth/operation-not-allowed') {
+        message = 'Google sign-in is not enabled in your Firebase console settings.';
+      }
       toast({
         title: 'Google Sign In Failed',
-        description: error.message || 'Could not verify Gmail account.',
+        description: message,
         status: 'error',
-        duration: 5000,
+        duration: 6000,
         isClosable: true,
         position: 'top-right',
       });
@@ -137,122 +69,81 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToSignUp }) => {
         transition={{ duration: 0.5 }}
       >
         <Box
-          py={{ base: '0', sm: '8' }}
-          px={{ base: '4', sm: '10' }}
+          py={{ base: '8', sm: '10' }}
+          px={{ base: '6', sm: '10' }}
           bg="white"
-          boxShadow={{ base: 'none', sm: 'xl' }}
-          borderRadius={{ base: 'none', sm: '2xl' }}
+          boxShadow="2xl"
+          borderRadius="2xl"
+          textAlign="center"
         >
-          <VStack spacing="6">
-            <VStack spacing="2" textAlign="center">
+          <VStack spacing="7">
+            <VStack spacing="3">
               <Image
                 src={process.env.PUBLIC_URL + '/logo.svg'}
                 alt="WealthWizard Logo"
-                boxSize="80px"
+                boxSize="90px"
                 borderRadius="2xl"
-                shadow="md"
+                shadow="lg"
                 mb={1}
               />
-              <Heading size="xl" color="brand.900" fontWeight="extrabold">
+              <Heading size="xl" color="gray.800" fontWeight="extrabold" letterSpacing="tight">
                 WealthWizard
               </Heading>
-              <Text color="gray.500" fontSize="sm">
-                Sign in with your verified <b>Gmail</b> account
+              <Text color="gray.500" fontSize="md" maxW="sm">
+                Your Smart Personal Financial Assistant
               </Text>
             </VStack>
 
-            {/* Google 1-Click Verification Button */}
-            <Button
-              w="full"
-              size="lg"
-              variant="outline"
-              leftIcon={<FcGoogle size={22} />}
-              onClick={handleGoogleLogin}
-              isLoading={isGoogleLoading}
-              borderColor="gray.300"
-              _hover={{ bg: 'gray.50' }}
-            >
-              Sign in with Google (Gmail)
-            </Button>
-
-            <HStack w="full">
-              <Divider />
-              <Text fontSize="xs" color="gray.400" whiteSpace="nowrap">
-                OR GMAIL & PASSWORD
+            <VStack spacing="3" w="full" pt={2}>
+              <Button
+                w="full"
+                size="lg"
+                height="56px"
+                variant="outline"
+                leftIcon={<FcGoogle size={26} />}
+                onClick={handleGoogleLogin}
+                isLoading={isGoogleLoading}
+                loadingText="Verifying Google Account..."
+                borderColor="gray.300"
+                borderRadius="xl"
+                fontWeight="bold"
+                fontSize="md"
+                boxShadow="sm"
+                _hover={{
+                  bg: 'gray.50',
+                  borderColor: 'blue.500',
+                  transform: 'translateY(-1px)',
+                  boxShadow: 'md',
+                }}
+                transition="all 0.2s"
+              >
+                Continue with Google
+              </Button>
+              <Text fontSize="xs" color="gray.400">
+                100% passwordless & instant access via your Google account
               </Text>
-              <Divider />
+            </VStack>
+
+            <HStack justify="center" spacing={4} pt={2} flexWrap="wrap">
+              <Badge colorScheme="blue" px={3} py={1} borderRadius="full" textTransform="none" fontSize="xs">
+                <HStack spacing={1}>
+                  <FiShield />
+                  <Text>Verified Identity</Text>
+                </HStack>
+              </Badge>
+              <Badge colorScheme="purple" px={3} py={1} borderRadius="full" textTransform="none" fontSize="xs">
+                <HStack spacing={1}>
+                  <FiCloud />
+                  <Text>Real-time Sync</Text>
+                </HStack>
+              </Badge>
+              <Badge colorScheme="green" px={3} py={1} borderRadius="full" textTransform="none" fontSize="xs">
+                <HStack spacing={1}>
+                  <FiZap />
+                  <Text>Passwordless</Text>
+                </HStack>
+              </Badge>
             </HStack>
-
-            <Box w="100%">
-              <form onSubmit={handleLogin}>
-                <VStack spacing="4">
-                  <FormControl id="email" isRequired>
-                    <FormLabel color="gray.700" fontSize="sm">
-                      Gmail address
-                    </FormLabel>
-                    <InputGroup>
-                      <Input
-                        type="email"
-                        placeholder="yourname@gmail.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        focusBorderColor="brand.500"
-                        size="lg"
-                        borderRadius="md"
-                      />
-                    </InputGroup>
-                  </FormControl>
-
-                  <FormControl id="password" isRequired>
-                    <FormLabel color="gray.700" fontSize="sm">
-                      Password
-                    </FormLabel>
-                    <InputGroup>
-                      <Input
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Enter your password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        focusBorderColor="brand.500"
-                        size="lg"
-                        borderRadius="md"
-                      />
-                      <InputRightElement h="full">
-                        <IconButton
-                          variant="ghost"
-                          aria-label={showPassword ? 'Hide password' : 'Show password'}
-                          icon={showPassword ? <FiEyeOff /> : <FiEye />}
-                          onClick={() => setShowPassword(!showPassword)}
-                          color="gray.400"
-                        />
-                      </InputRightElement>
-                    </InputGroup>
-                  </FormControl>
-
-                  <Button
-                    type="submit"
-                    colorScheme="blue"
-                    size="lg"
-                    fontSize="md"
-                    w="100%"
-                    mt="2"
-                    isLoading={isLoading}
-                    loadingText="Signing In..."
-                    _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg' }}
-                    transition="all 0.2s"
-                  >
-                    Sign In
-                  </Button>
-                </VStack>
-              </form>
-            </Box>
-
-            <Text color="gray.500" fontSize="sm">
-              Don't have an account?{' '}
-              <Link color="blue.500" fontWeight="bold" onClick={onGoToSignUp} cursor="pointer">
-                Create Account
-              </Link>
-            </Text>
           </VStack>
         </Box>
       </MotionBox>
